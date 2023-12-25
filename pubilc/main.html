@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Spuer CUP Badminton</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+
+<body>
+    <h1>Spuer CUP Badminton Field</h1>
+    <h2>配置信息：</h2>
+    <label for="userToken">密钥：</label>
+    <input type="text" id="userToken" placeholder="输入文本" style="width: 300px;"><br><br>
+    <label for="yearInput">需要定场时间：</label>
+    <input type="number" id="yearInput" placeholder="年份" style="width: 50px;" min="2020" max="2030" value="2023">
+    <label >年</label>
+    <input type="number" id="monthInput" placeholder="月份" style="width: 50px;" min="1" max="12" value="12">
+    <label >月</label>
+    <input type="number" id="dayInput" placeholder="日" style="width: 50px;" min="1" max="31" value="25">
+    <label >日</label>
+    <button id="listButton">查询信息</button><br><br>
+    <label for="hourInput">自动下单时间：</label>
+    <input type="number" id="hourInput" placeholder="时" style="width: 50px;" min="0" max="24" value="8">
+    <label >时</label>
+    <input type="number" id="minInput" placeholder="分" style="width: 50px;" min="0" max="60" value="0">
+    <label >分</label>
+    <input type="number" id="secInput" placeholder="秒" style="width: 50px;" min="0" max="60" value="6">
+    <label >秒</label>
+    <button id="orderButton">下单</button><br><br>
+    <table id="timeTable">
+        <thead>
+            <tr>
+                <th>选择</th>
+                <th>日期</th>
+                <th>场地号</th>
+                <th>开始时间</th>
+                <th>结束时间</th>
+                <th>订购状态</th>
+                <th>id</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 表格数据将被动态填充 -->
+        </tbody>
+    </table><br><br>
+    <textarea id="result" rows="10" cols="80"></textarea>
+
+    <script>
+        $(document).ready(function () {
+            $('#listButton').click(function () {
+                const token = String($('#userToken').val());
+                const year = String($('#yearInput').val());
+                const month = String($('#monthInput').val());
+                const day = String($('#dayInput').val());
+                const formattedDate = `${year}-${month}-${day}`;
+                console.log("click listButton")
+                $.ajax({
+                    type: 'POST',
+                    url: 'http://localhost:3005/listRequest',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        token: token,
+                        date: formattedDate
+                    }),
+                    success: function (response) {
+                        response.forEach((places, index) => {
+                            places.forEach(place => {
+                                var row = `<tr>
+                                        <td>
+                                            <input type="checkbox" name="rowSelect"
+                                                data-id="${place.id}"
+                                                data-place="${place.placeName}"
+                                                data-date="${place.openDate}"
+                                                class="row-checkbox">
+                                        </td>
+                                        <td>${place.openDate}</td>
+                                        <td>${place.placeName}</td>
+                                        <td>${place.openStartTime}</td>
+                                        <td>${place.openEndTime}</td>
+                                        <td>${place.sessionsStatus}</td>
+                                        <td>${place.id}</td>
+                                        </tr>`;
+                                $("#timeTable tbody").append(row);
+                                console.log(row)
+                            });
+                        });
+                    },
+                    error: function (xhr, status, error) {
+                        console.error(error);
+                        $('#result').val(`错误: ${error}`);
+                    }
+                });
+            });
+            $('#orderButton').click(function () {
+                console.log("click orderButton");
+                const token = String($('#userToken').val());
+                const hour = String($('#hourInput').val());
+                const min = String($('#minInput').val());
+                const sec = String($('#secInput').val());
+                const formattedTime = `${hour}:${min}:${sec}`;
+                let selectedPlaces = [];
+                $('.row-checkbox:checked').each(function () {
+                    var id = $(this).data('id');
+                    var placeName = $(this).data('place');
+                    var openDate = $(this).data('date');
+                    selectedPlaces.push({ id: id, placeName: placeName, openDate: openDate });
+                });
+                $.ajax({
+                    type: 'POST',
+                    url: 'http://localhost:3005/orderRequest',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        token: token,
+                        places: selectedPlaces,
+                        orderTime: formattedTime
+                    }),
+                    success: function (response) {
+                        $('#result').val(JSON.stringify(response, null, 2));
+                    },
+                    error: function (xhr, status, error) {
+                        console.error(error);
+                        $('#result').val(`错误: ${error}`);
+                    }
+                });
+            });
+            $(document).on('change', 'input[type="checkbox"]', function () {
+                var checkedCount = $('input[type="checkbox"]:checked').length;
+                if (checkedCount >= 2) {
+                    $('input[type="checkbox"]:not(:checked)').prop('disabled', true);
+                } else {
+                    $('input[type="checkbox"]').prop('disabled', false);
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
